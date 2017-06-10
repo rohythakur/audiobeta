@@ -1,309 +1,104 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>fast audio converter</title>
-        <meta name="description" content="The fast audio converter. Convert your audio files without any programs or long files upload.">
-        <meta name="author" content="rohyt">
-        <meta name="keywords" content="audio, conversion, quck, web, tools, mp3, ogg, flac, wma, apps, fast, ffmpeg, emscripten">
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="The fast audio converter">
-        <meta property="og:image" content="http://quick-apps.com/audio/favicon.ico">
-        <meta property="og:url" content="http://mp4tomp3converterpro.com">
-        <meta property="fb:admins" content="rohytt"/>
-        <meta property="fb:app_id" content=""/>
-        <link rel="shortcut icon" href="favicon.ico">
-        <link href="css/bootstrap.min.css" rel="stylesheet">
-        <link href="css/style.css" rel="stylesheet">
-    </head>
-    <body>
-        <div id="fb-root"></div>
-        <script>
-        		//fb app id and sdk paste
-        </script>
-        <div class="navbar navbar-inverse" role="navigation">
-            <div class="container">
-                <div class="navbar-header">
-                    <a class="navbar-brand" href="#"><img src="favicon.ico" height="18px"> mp4 to mp3 audio converter</a>
-                </div>
-                <div>
-                    <ul class="nav navbar-nav">
-                        <li><a href="rohythakur.github.io">About</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        
-        <div class="container">
-            <div class="quick-block">
-                <div id="loading" class="quick-overlay"><div class="quick-overlay-inner1"><div class="quick-overlay-inner2 lead">
-                    <b>Loading</b> <img src="loader.gif">
-                </div></div></div>
-                <h1><img src="favicon.ico" height="50px"> mp4 to mp3 converter pro</h1>
-                <p class="lead"> Convert your audio files without any external programs or long files upload!
-                </p>
-                <div>
-                    <p class="lead">1. Select video or audio file for conversion (wav, mp3, ogg, aac, mp4, wma):</p>
-                    <div class="quick-center">
-                        <div class="quick-drop-outer quick-left"><input id="inFile" type="file" id="inputFile"/></div>
-                        <div class="quick-drop-outer quick-left"><div id="drop" class="quick-drop-inner">Drop file here</div></div>
-                    </div>
-                </div>
-                <div>
-                    <br>
-                    <p class="lead">2. Select output audio format:</p>
-                    <div class="btn-group" data-toggle="buttons">
-                        <label class="btn btn-default active" name="formatBtn">
-                            <input type="radio" name="format" value="mp3" checked>
-                                MP3 </label>
-                        <label class="btn btn-default" name="formatBtn">
-                            <input type="radio" name="format" value="ogg">
-                                Ogg </label>
-                        <label class="btn btn-default" name="formatBtn">
-                            <input type="radio" name="format" value="aac">
-                                AAC </label>
-                        <label class="btn btn-default" name="formatBtn">
-                            <input type="radio" name="format" value="wma">
-                                WMA </label>
-                    </div>
-                </div>
-                <div>
-                    <br>
-                    <p class="lead">3. Select bitrate:</p>
-                    <div class="btn-group" data-toggle="buttons">
-                        <label class="btn btn-default" name="bitrateBtn">
-                            <input type="radio" name="bitrate" value="96k">
-                                96k </label>
-                        <label class="btn btn-default" name="bitrateBtn">
-                            <input type="radio" name="bitrate" value="128k">
-                                128k </label>
-                        <label class="btn btn-default active" name="bitrateBtn">
-                            <input type="radio" name="bitrate" value="192k" checked>
-                                192k </label>
-                        <label class="btn btn-default" name="bitrateBtn">
-                            <input type="radio" name="bitrate" value="320k">
-                                320k </label>
-                    </div>
-                </div>
-                <div>
-                    <br>
-                    <div class="quick-center">
-                        <p class="lead quick-left">4. Convert audio file:&nbsp;&nbsp;</p><button id="convert" type="button" class="btn btn-default" disabled="true">Convert</button>
-                        <img id="converting" class="quick-hidden" src="loader.gif"> <b id="progress" class="quick-hidden"></b> <b id="error" class="quick-hidden">Error during conversion</b>
-                    </div>
-                </div>
-                <div id="download" class="quick-hidden">
-                    <p class="lead">5. Save converted <a id="downloadLink" class="lead">audio file</a></p>
-                </div>
-                <div class="fb-like" data-href="http://quick-apps.com/audio/" data-layout="button_count" data-action="like" data-show-faces="true" data-share="true"></div>
-            </div>
-        </div>
-        <script src="js/jquery.min.js"></script>
-        <script src="js/bootstrap.min.js"></script>
-        <script type="text/javascript">
-            // input file params
-            var fileName;
-            var fileBuffer;
-            
-            function timeToSeconds(time) {
-                var parts = time.split(":");
-                return parseFloat(parts[0]) * 60 * 60 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]) + parseFloat("0." + parts[3]);
-            }
-
-            // create ffmpeg worker
-            function getFFMPEGWorker() {
-                // regexps for extracting time from ffmpeg logs
-                var durationRegexp = /Duration: (.*?), /
-                var timeRegexp = /time=(.*?) /;
-                var duration;
-
-                var ffmpegWorker = new Worker('worker.js');
-                var durationLine
-                ffmpegWorker.addEventListener('message', function(event) {
-                    var message = event.data;
-                    if (message.type === "ready" && window.File && window.FileList && window.FileReader) {
-                        // script loaded, hide loader
-                        $('#loading').hide();
-                    } else if (message.type == "stdout") {
-                        console.log(message.data);
-                    } else if (message.type == "stderr") {
-                        console.log(message.data);
-                        // try to extract duration
-                        if (durationRegexp.exec(message.data)) {
-                            duration = timeToSeconds(durationRegexp.exec(message.data)[1]);
-                        }
-                        // try to extract time
-                        if (timeRegexp.exec(message.data)) {
-                            var time = timeToSeconds(timeRegexp.exec(message.data)[1]);
-                            if (duration) {
-                                $("#progress").text("Progress: " + Math.floor(time / duration * 100) + "%");
-                                $("#progress").show();
-                            }
-                        }
-                    } else if (message.type == "done") {
-                        var code = message.data.code;
-                        var outFileNames = Object.keys(message.data.outputFiles);
-                        if (code == 0 && outFileNames.length) {
-                            var outFileName = outFileNames[0];
-                            var outFileBuffer = message.data.outputFiles[outFileName];
-                            var src = window.URL.createObjectURL(new Blob([outFileBuffer]));
-                            $("#downloadLink").attr('href', src);
-                            $("#download").show();
-                        } else {
-                            $("#error").show();
-                        }
-                        $("#converting").hide();
-                        $("#progress").hide();
-                    }
-                }, false);
-                return ffmpegWorker;
-            }
-        
-            // create ffmpeg worker
-            var ffmpegWorker = getFFMPEGWorker();
-            var ffmpegRunning = false;
-        
-            $('#convert').click(function() {
-                // terminate existing worker
-                if (ffmpegRunning) {
-                    ffmpegWorker.terminate();
-                    ffmpegWorker = getFFMPEGWorker();
-                }
-                ffmpegRunning = true;
-                                
-                // display converting animation
-                $("#converting").show();
-                $("#error").hide();
-                                
-                // hide download div
-                $("#download").hide();
-                                
-                // change download file name
-                var fileNameExt = fileName.substr(fileName.lastIndexOf('.') + 1);
-                var outFileName = fileName.substr(0, fileName.lastIndexOf('.')) + "." + getOutFormat();
-                $("#downloadLink").attr("download", outFileName);
-                $("#downloadLink").text(outFileName);
-                                
-                var arguments = [];
-                arguments.push("-i");
-                arguments.push(fileName);
-                                
-                arguments.push("-b:a");
-                arguments.push(getBitrate());
-
-                switch (getOutFormat()) {
-                    case "mp3":
-                        arguments.push("-acodec");
-                        arguments.push("libmp3lame");
-                        arguments.push("out.mp3");
-                        break;
-                                
-                    case "ogg":
-                        arguments.push("-acodec");
-                        arguments.push("libvorbis");
-                        arguments.push("out.ogg");
-                        break;
-                                
-                    case "aac":
-                        arguments.push("-acodec");
-                        arguments.push("libfdk_aac");
-                        arguments.push("out.mp4");
-                        break;
-                                
-                    case "wma":
-                        arguments.push("-acodec");
-                        arguments.push("wmav1");
-                        arguments.push("out.asf");
-                        break;
-                }
-
-                ffmpegWorker.postMessage({
-                    type: "command",
-                    arguments: arguments,
-                    files: [
-                        {
-                            "name": fileName,
-                            "buffer": fileBuffer
-                        }
-                    ]
-                });
-            });
-            
-            function getOutFormat() {
-                return $('input[name=format]:checked').val();
-            }
-        
-            function getBitrate() {
-                return $('input[name=bitrate]:checked').val();
-            }
-        
-            // disable conversion at start
-            $('#convert').attr('disabled', 'true');
-            
-            function readInputFile(file) {
-                // disable conversion for the time of file loading
-                $('#convert').attr('disabled', 'true');
-                
-                // load file content
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    $('#convert').removeAttr('disabled');
-                    fileName = file.name;
-                    fileBuffer = e.target.result;
-                }
-                reader.readAsArrayBuffer(file);
-            }
-        
-            // reset file selector at start
-            function resetInputFile() {
-                $("#inFile").wrap('<form>').closest('form').get(0).reset();
-                $("#inFile").unwrap();
-            }
-            resetInputFile();
-        
-            function handleFileSelect(event) {
-                var files = event.target.files; // FileList object
-            
-                // files is a FileList of File objects. display first file name
-                file = files[0];
-                if (file) {
-                    $("#drop").text("Drop file here");
-                    readInputFile(file);
-                }
-            }
-        
-            // setup input file listeners
-            document.getElementById('inFile').addEventListener('change', handleFileSelect, false);
-            
-            function handleDropSelect(event) {
-                event.stopPropagation();
-                event.preventDefault();
-                
-                var files = event.dataTransfer.files; // FileList object
-                
-                // files is a FileList of File objects. display first file name
-                file = files[0];
-                if (file) {
-                    $("#drop").text("Dropped file: " + file.name);
-                    resetInputFile();
-                    readInputFile(file);
-                }
-            }
-            
-            function handleDragOver(event) {
-                event.stopPropagation();
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'copy'; // explicitly show this is a copy
-            }
-        
-            // setup drop listeners.
-            var drop = document.getElementById('drop');
-            drop.addEventListener('dragover', handleDragOver, false);
-            drop.addEventListener('drop', handleDropSelect, false);
-        </script>
-        <script>
-            //analytics id function paste here
-        </script>
-    </body>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1.0">
+<title>fast audio converter</title>
+<meta name=description content="The fast audio converter. Convert your audio files without any programs or long files upload.">
+<meta name=author content=rohyt>
+<meta name=keywords content="audio, conversion, quck, web, tools, mp3, ogg, flac, wma, apps, fast, ffmpeg, emscripten">
+<meta property=og:type content=website />
+<meta property=og:title content="The fast audio converter">
+<meta property=og:image content=http://quick-apps.com/audio/favicon.ico>
+<meta property=og:url content=http://mp4tomp3converterpro.com>
+<meta property=fb:admins content="rohytt"/>
+<meta property=fb:app_id content=""/>
+<link rel="shortcut icon" href=favicon.ico>
+<link href=css/bootstrap.min.css rel=stylesheet>
+<link href=css/style.css rel=stylesheet>
+</head>
+<body>
+<div id=fb-root></div>
+<script></script>
+<div class="navbar navbar-inverse" role=navigation>
+<div class=container>
+<div class=navbar-header>
+<a class=navbar-brand href=#><img src=favicon.ico height=18px> mp4 to mp3 audio converter</a>
+</div>
+<div>
+<ul class="nav navbar-nav">
+<li><a href=rohythakur.github.io>About</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class=container>
+<div class=quick-block>
+<div id=loading class=quick-overlay><div class=quick-overlay-inner1><div class="quick-overlay-inner2 lead">
+<b>Loading</b> <img src=loader.gif>
+</div></div></div>
+<h1><img src=favicon.ico height=50px> mp4 to mp3 converter pro</h1>
+<p class=lead> Convert your audio files without any external programs or long files upload!
+</p>
+<div>
+<p class=lead>1. Select video or audio file for conversion (wav, mp3, ogg, aac, mp4, wma):</p>
+<div class=quick-center>
+<div class="quick-drop-outer quick-left"><input id=inFile type=file id="inputFile"/></div>
+<div class="quick-drop-outer quick-left"><div id=drop class=quick-drop-inner>Drop file here</div></div>
+</div>
+</div>
+<div>
+<br>
+<p class=lead>2. Select output audio format:</p>
+<div class=btn-group data-toggle=buttons>
+<label class="btn btn-default active" name=formatBtn>
+<input type=radio name=format value=mp3 checked>
+MP3 </label>
+<label class="btn btn-default" name=formatBtn>
+<input type=radio name=format value=ogg>
+Ogg </label>
+<label class="btn btn-default" name=formatBtn>
+<input type=radio name=format value=aac>
+AAC </label>
+<label class="btn btn-default" name=formatBtn>
+<input type=radio name=format value=wma>
+WMA </label>
+</div>
+</div>
+<div>
+<br>
+<p class=lead>3. Select bitrate:</p>
+<div class=btn-group data-toggle=buttons>
+<label class="btn btn-default" name=bitrateBtn>
+<input type=radio name=bitrate value=96k>
+96k </label>
+<label class="btn btn-default" name=bitrateBtn>
+<input type=radio name=bitrate value=128k>
+128k </label>
+<label class="btn btn-default active" name=bitrateBtn>
+<input type=radio name=bitrate value=192k checked>
+192k </label>
+<label class="btn btn-default" name=bitrateBtn>
+<input type=radio name=bitrate value=320k>
+320k </label>
+</div>
+</div>
+<div>
+<br>
+<div class=quick-center>
+<p class="lead quick-left">4. Convert audio file:&nbsp;&nbsp;</p><button id=convert type=button class="btn btn-default" disabled=true>Convert</button>
+<img id=converting class=quick-hidden src=loader.gif> <b id=progress class=quick-hidden></b> <b id=error class=quick-hidden>Error during conversion</b>
+</div>
+</div>
+<div id=download class=quick-hidden>
+<p class=lead>5. Save converted <a id=downloadLink class=lead>audio file</a></p>
+</div>
+<div class=fb-like data-href=http://quick-apps.com/audio/ data-layout=button_count data-action=like data-show-faces=true data-share=true></div>
+</div>
+</div>
+<script src=js/jquery.min.js></script>
+<script src=js/bootstrap.min.js></script>
+<script type=text/javascript>var fileName;var fileBuffer;function timeToSeconds(b){var a=b.split(":");return parseFloat(a[0])*60*60+parseFloat(a[1])*60+parseFloat(a[2])+parseFloat("0."+a[3])}function getFFMPEGWorker(){var b=/Duration: (.*?), /;var d=/time=(.*?) /;var c;var e=new Worker("worker.js");var a;e.addEventListener("message",function(i){var h=i.data;if(h.type==="ready"&&window.File&&window.FileList&&window.FileReader){$("#loading").hide()}else{if(h.type=="stdout"){console.log(h.data)}else{if(h.type=="stderr"){console.log(h.data);if(b.exec(h.data)){c=timeToSeconds(b.exec(h.data)[1])}if(d.exec(h.data)){var l=timeToSeconds(d.exec(h.data)[1]);if(c){$("#progress").text("Progress: "+Math.floor(l/c*100)+"%");$("#progress").show()}}}else{if(h.type=="done"){var g=h.data.code;var k=Object.keys(h.data.outputFiles);if(g==0&&k.length){var f=k[0];var j=h.data.outputFiles[f];var m=window.URL.createObjectURL(new Blob([j]));$("#downloadLink").attr("href",m);$("#download").show()}else{$("#error").show()}$("#converting").hide();$("#progress").hide()}}}}},false);return e}var ffmpegWorker=getFFMPEGWorker();var ffmpegRunning=false;$("#convert").click(function(){if(ffmpegRunning){ffmpegWorker.terminate();ffmpegWorker=getFFMPEGWorker()}ffmpegRunning=true;$("#converting").show();$("#error").hide();$("#download").hide();var c=fileName.substr(fileName.lastIndexOf(".")+1);var a=fileName.substr(0,fileName.lastIndexOf("."))+"."+getOutFormat();$("#downloadLink").attr("download",a);$("#downloadLink").text(a);var b=[];b.push("-i");b.push(fileName);b.push("-b:a");b.push(getBitrate());switch(getOutFormat()){case"mp3":b.push("-acodec");b.push("libmp3lame");b.push("out.mp3");break;case"ogg":b.push("-acodec");b.push("libvorbis");b.push("out.ogg");break;case"aac":b.push("-acodec");b.push("libfdk_aac");b.push("out.mp4");break;case"wma":b.push("-acodec");b.push("wmav1");b.push("out.asf");break}ffmpegWorker.postMessage({type:"command",arguments:b,files:[{name:fileName,buffer:fileBuffer}]})});function getOutFormat(){return $("input[name=format]:checked").val()}function getBitrate(){return $("input[name=bitrate]:checked").val()}$("#convert").attr("disabled","true");function readInputFile(b){$("#convert").attr("disabled","true");var a=new FileReader();a.onload=function(c){$("#convert").removeAttr("disabled");fileName=b.name;fileBuffer=c.target.result};a.readAsArrayBuffer(b)}function resetInputFile(){$("#inFile").wrap("<form>").closest("form").get(0).reset();$("#inFile").unwrap()}resetInputFile();function handleFileSelect(b){var a=b.target.files;file=a[0];if(file){$("#drop").text("Drop file here");readInputFile(file)}}document.getElementById("inFile").addEventListener("change",handleFileSelect,false);function handleDropSelect(b){b.stopPropagation();b.preventDefault();var a=b.dataTransfer.files;file=a[0];if(file){$("#drop").text("Dropped file: "+file.name);resetInputFile();readInputFile(file)}}function handleDragOver(a){a.stopPropagation();a.preventDefault();a.dataTransfer.dropEffect="copy"}var drop=document.getElementById("drop");drop.addEventListener("dragover",handleDragOver,false);drop.addEventListener("drop",handleDropSelect,false);</script>
+<script></script>
+</body>
 </html>
